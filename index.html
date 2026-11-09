@@ -1,0 +1,1209 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>ORION 5 — Marc-André Deschênes</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&family=Chakra+Petch:wght@500;600;700&display=swap">
+<style>
+/* Mise en page : une scène fixe de 1920×1280 (les proportions des fonds), mise à l'échelle de l'écran.
+   Toutes les positions sont en pixels du fond d'origine. */
+:root{
+  --void:#03060b;
+  --ink:#dbe8f5;
+  --ink-dim:#8ea8c1;
+  --cyan:#62bdf2;
+  --cyan-soft:rgba(98,189,242,.32);
+  --panel:rgba(6,18,34,.72);
+  --alert:#ff5d4f;
+  --hazard:#ffb020;
+  --f-ui:"Chakra Petch","Bahnschrift","Segoe UI",system-ui,sans-serif;
+  --f-read:"Atkinson Hyperlegible",Verdana,system-ui,sans-serif;
+  color-scheme:dark;
+}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{
+  background:var(--void);color:var(--ink);overflow:hidden;box-sizing:border-box;
+  padding-left:max(16px,env(safe-area-inset-left,0px));
+  padding-right:max(16px,env(safe-area-inset-right,0px));
+  padding-block:0;
+}
+#scene{position:relative;width:100%;height:100%;overflow:hidden}
+#stage{position:absolute;left:0;top:0;width:1920px;height:1280px;transform-origin:0 0}
+
+.fond{position:absolute;inset:0;width:1920px;height:1280px;max-width:none;user-select:none;pointer-events:none;transition:opacity .45s ease}
+#fondSingle{opacity:0}
+.mode-cine #fondSingle{opacity:1}
+.mode-cine #fondDual{opacity:0}
+
+.phase{position:absolute;inset:0;transition:opacity .4s ease}
+#phaseCine{opacity:0;pointer-events:none}
+.mode-cine #phaseLecture{opacity:0;pointer-events:none}
+.mode-cine #phaseCine{opacity:1;pointer-events:auto}
+
+.zone{position:absolute;box-sizing:border-box}
+
+/* ---------- Panneau de gauche : le récit ---------- */
+#zoneTexte{left:178px;top:284px;width:724px;height:786px;padding-right:18px;overflow-y:auto;display:flex;flex-direction:column;gap:26px;scrollbar-color:var(--cyan-soft) transparent}
+.evt-meta{margin:0;font:600 22px/1 var(--f-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--cyan)}
+.evt-titre{margin:0;font:600 54px/1.1 var(--f-ui);letter-spacing:.03em;text-transform:uppercase;color:var(--ink);text-wrap:balance}
+.filet{height:1px;background:linear-gradient(90deg,var(--cyan) 0 64px,var(--cyan-soft) 64px 100%);flex:none}
+#recit{display:flex;flex-direction:column;gap:24px}
+#recit p{margin:0;font:400 33px/1.55 var(--f-read);color:var(--ink)}
+#recit.dense{gap:12px}
+#recit.dense p{font-size:26px;line-height:1.38}
+#recit.serre{gap:9px}
+#recit.serre p{font-size:24px;line-height:1.32}
+.danger{display:flex;align-items:center;gap:22px;padding:16px 22px;border:2px solid var(--hazard);background:rgba(255,176,32,.1)}
+.danger svg{width:78px;height:68px;flex:none}
+#recit .danger-label{margin:0 0 4px;font:700 28px/1 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--hazard)}
+#recit .danger-texte{margin:0;font:700 27px/1.4 var(--f-read);color:var(--ink)}
+
+/* ---------- Panneau de droite : chrono, choix, actions ---------- */
+#zoneDroite{left:1012px;top:284px;width:738px;height:786px;display:flex;flex-direction:column;justify-content:center}
+.ui-label{margin:0;font:600 22px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--cyan)}
+.bloc{display:flex;flex-direction:column;gap:28px}
+
+#attente{align-items:center;text-align:center}
+.chrono{font:600 168px/1 var(--f-ui);color:var(--ink);font-variant-numeric:tabular-nums;text-shadow:0 0 30px rgba(98,189,242,.45)}
+.chrono small{font-size:56px;color:var(--ink-dim);margin-left:6px}
+.jauge{width:520px;height:6px;background:rgba(98,189,242,.14)}
+.jauge div{height:100%;background:var(--cyan);transform-origin:left center;box-shadow:0 0 14px var(--cyan)}
+.consigne{margin:0;max-width:540px;font:400 28px/1.45 var(--f-read);color:var(--ink-dim)}
+
+.question{margin:0;font:600 46px/1.1 var(--f-ui);text-transform:uppercase;letter-spacing:.03em}
+#listeChoix{display:flex;flex-direction:column;gap:22px}
+.choix{
+  display:grid;grid-template-columns:66px 1fr;gap:24px;align-items:center;text-align:left;
+  padding:22px 26px;border:1px solid var(--cyan-soft);background:var(--panel);color:var(--ink);
+  font:400 30px/1.35 var(--f-read);cursor:pointer;transition:border-color .2s,background .2s,box-shadow .2s,opacity .3s;
+}
+.cle{display:grid;place-items:center;width:66px;height:66px;border:1px solid var(--cyan);font:600 32px/1 var(--f-ui);color:var(--cyan)}
+.choix:hover:not(:disabled),.choix:focus-visible{border-color:var(--cyan);background:rgba(18,52,86,.8);box-shadow:0 0 26px rgba(98,189,242,.3)}
+.choix:focus-visible,.btn:focus-visible{outline:3px solid var(--cyan);outline-offset:4px}
+.choix:disabled{cursor:default;opacity:.35}
+.choix.choisi{opacity:1;border-color:var(--cyan);background:rgba(30,80,125,.85);box-shadow:0 0 34px rgba(98,189,242,.45)}
+.choix.choisi .cle{background:var(--cyan);color:var(--void)}
+#choix.entree .ui-label,#choix.entree .question,#choix.entree .choix{animation:monte .45s ease both}
+#choix.entree .question{animation-delay:.08s}
+#choix.entree .choix:nth-child(1){animation-delay:.2s}
+#choix.entree .choix:nth-child(2){animation-delay:.32s}
+#choix.entree .choix:nth-child(3){animation-delay:.44s}
+@keyframes monte{from{opacity:0;transform:translateY(18px)}to{opacity:1;transform:none}}
+
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:16px;min-width:300px;padding:24px 40px;
+  border:1px solid var(--cyan);background:var(--panel);color:var(--ink);cursor:pointer;
+  font:600 32px/1 var(--f-ui);letter-spacing:.12em;text-transform:uppercase;transition:background .2s,box-shadow .2s;
+}
+.btn:hover{background:rgba(18,52,86,.85);box-shadow:0 0 28px rgba(98,189,242,.35)}
+.btn.principal{background:var(--cyan);color:var(--void)}
+.btn.principal:hover{background:#86cdf6}
+#action{align-items:center;text-align:center}
+
+/* ---------- Phase cinématique ---------- */
+#zoneCine{left:160px;top:268px;width:1605px;height:812px}
+.ecran{
+  /* remplit le panneau intérieur du cadre (y 254 à 1088 du fond), format 3:2 des vidéos, rien n'est coupé */
+  position:absolute;top:-11px;left:179px;width:1242px;height:828px;background:#000;overflow:hidden;
+  opacity:0;transform:scale(1,.003);
+  box-shadow:0 0 0 2px rgba(98,189,242,.28),0 0 60px rgba(98,189,242,.18);
+}
+.ecran video{width:100%;height:100%;object-fit:contain;display:block}
+.temporaire{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:22px;text-align:center;
+  background:repeating-linear-gradient(135deg,rgba(98,189,242,.06) 0 18px,transparent 18px 36px),#050c16}
+.tmp-id{margin:0;font:700 150px/1 var(--f-ui);color:var(--ink);letter-spacing:.04em;text-shadow:0 0 34px rgba(98,189,242,.5)}
+.tmp-titre{margin:0;font:600 40px/1.2 var(--f-ui);text-transform:uppercase;color:var(--ink)}
+.tmp-fichier{margin:0;font:400 24px/1.4 var(--f-read);color:var(--ink-dim)}
+#action[data-etat="echec"] .ui-label{color:var(--alert)}
+#action[data-etat="echec"] .btn.principal{background:var(--alert);border-color:var(--alert)}
+#action[data-etat="victoire"] .ui-label{color:#7ee0a1}
+#action[data-etat="victoire"] .btn.principal{background:#7ee0a1;border-color:#7ee0a1}
+.ecran::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;
+  background:repeating-linear-gradient(to bottom,rgba(0,0,0,.35) 0 1px,transparent 1px 4px)}
+.ecran.ouvert{animation:tvOn .7s cubic-bezier(.2,.7,.2,1) forwards}
+.ecran.ferme{animation:tvOff .55s ease-in forwards}
+@keyframes tvOn{
+  0%{opacity:1;transform:scale(.002,.003);filter:brightness(7)}
+  40%{opacity:1;transform:scale(1,.003);filter:brightness(5)}
+  75%{filter:brightness(1.8)}
+  100%{opacity:1;transform:scale(1,1);filter:brightness(1)}
+}
+@keyframes tvOff{
+  0%{opacity:1;transform:scale(1,1);filter:brightness(1)}
+  45%{opacity:1;transform:scale(1,.004);filter:brightness(5)}
+  80%{opacity:1;transform:scale(.004,.004);filter:brightness(9)}
+  100%{opacity:0;transform:scale(0,0)}
+}
+.centre{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:34px;text-align:center}
+#cineStatut .ui-label{font-size:30px;display:flex;align-items:center;gap:16px}
+#cineStatut .ui-label::before{content:"";width:16px;height:16px;border-radius:50%;background:var(--alert);box-shadow:0 0 14px var(--alert);animation:clignote 1s steps(2) infinite}
+@keyframes clignote{50%{opacity:.15}}
+.rangee{display:flex;gap:30px}
+
+
+/* ---------- Texte justifié + défilement lettre par lettre ---------- */
+#recit p,#b1Texte p,.regle p,.mot dd,.danger-texte{text-align:justify;hyphens:none}
+.l{visibility:hidden}
+.l.on{visibility:visible;animation:lettre .5s ease-out}
+.l.curseur{position:relative}
+.l.curseur::after{content:"";position:absolute;left:100%;top:.12em;width:.5em;height:1.05em;margin-left:2px;background:var(--cyan);
+  box-shadow:0 0 10px var(--cyan);animation:clignote .5s steps(2) infinite}
+@keyframes lettre{from{color:var(--cyan);text-shadow:0 0 12px var(--cyan)}}
+
+/* ---------- Boutons de panneau dans le texte (ex. 3D) ---------- */
+.panneau-boutons{display:flex;flex-direction:column;align-items:flex-start;gap:6px;margin:-4px 0 0 4px}
+.panneau-boutons span{padding:6px 16px;border:2px solid var(--ink-dim);border-radius:6px;background:rgba(6,18,34,.75);
+  font:700 24px/1.1 var(--f-ui);letter-spacing:.12em;color:var(--ink)}
+#recit .panneau-boutons + p{margin-top:12px}
+#recit.dense .panneau-boutons span{font-size:20px;padding:4px 14px}
+
+/* ---------- Choix piège : rouge, clignote doucement ---------- */
+.choix.tentation{position:relative;border-color:var(--alert);background:rgba(60,10,10,.6);color:#ffe1dd}
+.choix.tentation .cle{border-color:var(--alert);color:var(--alert)}
+.choix.tentation::after{content:"";position:absolute;inset:-1px;pointer-events:none;border:2px solid var(--alert);
+  box-shadow:0 0 30px rgba(255,93,79,.65),inset 0 0 26px rgba(255,93,79,.3);animation:tentation 2.4s ease-in-out infinite}
+.choix.tentation:hover:not(:disabled),.choix.tentation:focus-visible{border-color:var(--alert);background:rgba(90,16,16,.75);box-shadow:0 0 30px rgba(255,93,79,.45)}
+.choix.tentation.choisi{background:rgba(120,20,20,.85)}
+.choix.tentation.choisi .cle{background:var(--alert);color:var(--void)}
+.choix.tentation:disabled:not(.choisi)::after{animation:none;opacity:0}
+@keyframes tentation{0%,100%{opacity:.15}50%{opacity:1}}
+
+/* ---------- Finales ---------- */
+.mode-fondu #phaseLecture{opacity:0}
+#action.entree > *{animation:monte .45s ease both}
+#action.entree .btn{animation-delay:.15s}
+#cineActions[data-etat="victoire"] .btn.principal{background:#7ee0a1;border-color:#7ee0a1}
+.sans-sortie #cineActions{display:none!important}
+#cineActions[data-etat="victoire"]{justify-content:flex-end;padding-bottom:120px;z-index:3}
+#cineActionsLabel:empty{display:none}
+.acte{margin:0 0 -6px;font:700 64px/1 var(--f-ui);letter-spacing:.22em;text-transform:uppercase;color:var(--cyan);
+  text-shadow:0 0 26px rgba(98,189,242,.55);animation:monte .5s ease both}
+#cineActions[data-etat="victoire"] .acte{color:#7ee0a1;font-size:44px;text-shadow:0 0 22px rgba(126,224,161,.55)}
+.verdict.victoire{place-items:start center;padding-top:250px}
+.verdict{position:absolute;inset:0;z-index:2;display:grid;place-items:center;background:rgba(3,6,11,.62);opacity:0;transition:opacity .5s ease}
+.verdict.visible{opacity:1}
+.verdict p{margin:0;font:700 150px/1 var(--f-ui);letter-spacing:.14em;text-transform:uppercase;text-align:center}
+.verdict.echec p{color:var(--alert);text-shadow:0 0 18px rgba(255,93,79,.9),0 0 60px rgba(255,93,79,.55)}
+.verdict.victoire p{font-size:110px;color:#7ee0a1;text-shadow:0 0 18px rgba(126,224,161,.9),0 0 60px rgba(126,224,161,.5)}
+.verdict.visible p{animation:allume .9s steps(1) both}
+@keyframes allume{0%{opacity:0}10%{opacity:1}18%{opacity:.2}26%{opacity:1}34%{opacity:.4}42%,100%{opacity:1}}
+
+/* ---------- Briefing plein écran ---------- */
+#phaseBrief{opacity:0;pointer-events:none}
+.mode-brief #phaseBrief{opacity:1;pointer-events:auto}
+.mode-brief #phaseLecture{opacity:0;pointer-events:none}
+.mode-brief #fondSingle{opacity:1}
+.mode-brief #fondDual{opacity:0}
+#zoneBrief{left:160px;top:268px;width:1605px;height:812px}
+.brief-page{position:absolute;inset:0}
+#brief1{display:grid;grid-template-columns:640px 1fr;gap:30px;align-items:center;padding:0 60px 0 10px}
+#holoIA canvas{width:640px;height:640px;display:block}
+#briefLex{display:flex;flex-direction:column;justify-content:center;gap:20px;padding:10px 70px}
+#lexMots{display:grid;grid-template-columns:1fr 1fr;gap:12px 40px;margin:0}
+.mot{display:grid;grid-template-columns:auto;gap:3px;padding:9px 18px;border-left:3px solid var(--cyan);background:rgba(6,18,34,.55)}
+.mot dt{margin:0;font:700 27px/1.1 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--cyan)}
+.mot dd{margin:0;font:400 25px/1.35 var(--f-read);color:var(--ink)}
+.b1-col{display:flex;flex-direction:column;gap:24px}
+#brief1 .evt-titre{font-size:56px}
+#b1Texte{display:flex;flex-direction:column;gap:18px}
+#b1Texte p{margin:0;font:400 30px/1.45 var(--f-read);color:var(--ink)}
+#brief1 .danger.grand{padding:16px 22px;gap:22px}
+#brief1 .danger.grand svg{width:80px;height:70px}
+#brief1 .danger-label{font-size:28px}
+#brief1 .danger-texte{font-size:28px}
+.parle{transform-box:fill-box;transform-origin:center;animation:parle 1.1s ease-in-out infinite}
+.onde{transform-box:fill-box;transform-origin:center bottom;animation:onde .9s ease-in-out infinite}
+@keyframes parle{0%,100%{transform:scaleY(.4)}20%{transform:scaleY(2.2)}35%{transform:scaleY(.8)}55%{transform:scaleY(1.9)}75%{transform:scaleY(.5)}88%{transform:scaleY(1.5)}}
+@keyframes onde{0%,100%{transform:scaleY(.25)}50%{transform:scaleY(1)}}
+.danger.grand{padding:22px 30px;gap:30px}
+.danger.grand svg{width:104px;height:90px}
+.danger-label{margin:0 0 6px;font:700 34px/1 var(--f-ui);letter-spacing:.24em;text-transform:uppercase;color:var(--hazard)}
+.danger-texte{margin:0;font:700 34px/1.35 var(--f-read);color:var(--ink)}
+.brief-chrono{display:flex;align-items:center;gap:26px}
+.brief-chrono .num{font:600 46px/1 var(--f-ui);color:var(--ink);font-variant-numeric:tabular-nums;min-width:90px}
+.brief-chrono .jauge{width:460px}
+#brief2{display:grid;grid-template-columns:780px 1fr;gap:30px;align-items:center;padding:0 50px 0 10px}
+#holo svg{width:780px;height:780px;display:block;filter:drop-shadow(0 0 6px rgba(98,189,242,.65));animation:vacille 4s ease-in-out infinite}
+.holo-txt{font:600 17px var(--f-ui);letter-spacing:.12em;paint-order:stroke;stroke:#03060b;stroke-width:6px}
+.trace{stroke-dasharray:1;stroke-dashoffset:1;animation:trace 1.8s ease-out forwards}
+.scan{animation:balaye 3.2s linear infinite}
+.pulse{transform-box:fill-box;transform-origin:center;animation:pulse 1.6s ease-out infinite}
+@keyframes trace{to{stroke-dashoffset:0}}
+@keyframes balaye{from{transform:translateY(-60px)}to{transform:translateY(620px)}}
+@keyframes pulse{0%{transform:scale(.7);opacity:1}100%{transform:scale(1.5);opacity:0}}
+@keyframes vacille{0%,100%{opacity:1}50%{opacity:.86}}
+.b2-col{display:flex;flex-direction:column;gap:30px}
+#b2Regles{display:flex;flex-direction:column;gap:24px}
+.regle{display:grid;grid-template-columns:62px 1fr;gap:22px;align-items:start}
+.regle .cle{width:62px;height:62px;font-size:30px}
+.regle p{margin:0;font:400 33px/1.4 var(--f-read);color:var(--ink);padding-top:6px}
+@media (prefers-reduced-motion:reduce){.trace{animation:none;stroke-dashoffset:0}.scan,.pulse,#holo svg,#holoIA svg,.parle,.onde{animation:none}}
+
+@media (prefers-reduced-motion:reduce){
+  .ecran.ouvert{animation:apparait .3s forwards}
+  .ecran.ferme{animation:disparait .3s forwards}
+  #choix.entree *,#action.entree *{animation:none!important}
+  .verdict.visible p{animation:none}
+  .choix.tentation::after{animation:none;opacity:.7}
+  .l.on{animation:none}
+  #cineStatut .ui-label::before{animation:none}
+}
+@keyframes apparait{from{opacity:0;transform:none}to{opacity:1;transform:none}}
+@keyframes disparait{from{opacity:1;transform:none}to{opacity:0;transform:none}}
+
+/* ---------- Ouverture : avertissement, écran titre, options ---------- */
+#phaseTitre{opacity:0;pointer-events:none;background:#000;transition:opacity .8s ease}
+.mode-titre #phaseTitre{opacity:1;pointer-events:auto}
+.mode-titre #phaseLecture,.mode-titre #phaseBrief,.mode-titre #phaseCine{opacity:0;pointer-events:none}
+.mode-titre .fond{opacity:0}
+.mode-titre #fondSingle{opacity:0}
+#avert{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:30px;padding:0 150px;text-align:center;
+  background:#000;transition:opacity 1.4s ease}
+#avert.part{opacity:0}
+#avert .av-label{margin:0 0 20px;font:600 26px/1 var(--f-ui);letter-spacing:.5em;text-transform:uppercase;color:var(--alert);opacity:0;transition:opacity 1.2s ease}
+#avert p.ligne{margin:0;font:400 44px/1.4 var(--f-read);color:#d9d2c6;opacity:0;filter:blur(6px);transform:translateY(10px);
+  transition:opacity 1.3s ease,filter 1.3s ease,transform 1.3s ease}
+#avert p.ligne:first-of-type{font-size:52px;color:#efe8dc}
+#avert p.ligne:last-of-type{margin-top:26px;font-style:italic;color:#b9c9d8}
+#avert .on{opacity:1!important;filter:none!important;transform:none!important}
+
+#titreEcran{position:absolute;inset:0;overflow:hidden;opacity:0;transition:opacity 2s ease}
+#titreEcran.on{opacity:1}
+#titreImage{position:absolute;inset:0;width:1920px;height:1280px;object-fit:cover;max-width:none}
+#ciel{position:absolute;inset:0;width:1920px;height:1280px}
+.planete{position:absolute;left:1020px;top:760px;width:1500px;height:1500px;border-radius:50%;
+  background:radial-gradient(circle at 34% 28%,#b77ee6 0,#7a3fb5 22%,#40195f 48%,#16071f 70%);
+  box-shadow:0 0 120px 30px rgba(150,80,220,.35),inset -90px -60px 200px rgba(0,0,0,.85);animation:derive 60s ease-in-out infinite alternate}
+@keyframes derive{to{transform:translate(-40px,-20px)}}
+.voile{position:absolute;inset:0;background:
+  linear-gradient(to bottom,rgba(0,0,0,.82) 0,rgba(0,0,0,.35) 26%,transparent 40%),
+  radial-gradient(ellipse 55% 35% at 50% 100%,rgba(0,0,0,.85) 0,rgba(0,0,0,.4) 60%,transparent 100%),
+  radial-gradient(ellipse at 50% 50%,transparent 55%,rgba(0,0,0,.55) 100%)}
+#titreEcran.zoom #titreImage{animation:zoomLent 40s ease-out both}
+@keyframes zoomLent{from{transform:scale(1.08)}to{transform:scale(1)}}
+.bloc-titre{position:absolute;left:0;right:0;top:56px;display:flex;flex-direction:column;align-items:center;gap:22px;text-align:center}
+.bloc-titre .ui-label{font-size:24px;letter-spacing:.6em;color:var(--ink-dim)}
+#titreAuteur{font-size:30px;letter-spacing:.45em;padding-left:.45em;color:#d6e9f7;text-shadow:0 0 12px rgba(98,189,242,.55)}
+#titreNom{margin:0;font:700 190px/1 var(--f-ui);letter-spacing:.16em;padding-left:.16em;color:#eaf5ff;
+  text-shadow:0 0 18px rgba(98,189,242,.8),0 0 70px rgba(98,189,242,.45),0 0 160px rgba(98,189,242,.25)}
+#titreEcran.on #titreNom{animation:allumeTitre 2.4s steps(1) both .3s}
+@keyframes allumeTitre{0%{opacity:0}8%{opacity:.8}12%{opacity:.1}20%{opacity:1}26%{opacity:.3}32%,100%{opacity:1}}
+.trait{width:640px;height:2px;background:linear-gradient(90deg,transparent,var(--cyan),transparent);box-shadow:0 0 14px var(--cyan)}
+#titreSous{margin:0;font:600 34px/1.2 var(--f-ui);letter-spacing:.2em;text-transform:uppercase;color:var(--ink)}
+#menu{position:absolute;left:0;right:0;bottom:110px;display:flex;flex-direction:row;justify-content:center;align-items:stretch;gap:40px}
+#menu .btn{min-width:460px;font-size:34px;padding:26px 40px;backdrop-filter:blur(4px)}
+#titreEcran.on #menu > *{animation:monte .6s ease both}
+#titreEcran.on #menu > *:nth-child(1){animation-delay:2.4s}
+#titreEcran.on #menu > *:nth-child(2){animation-delay:2.6s}
+
+#options{position:absolute;inset:0;display:grid;place-items:center;background:rgba(1,4,8,.78)}
+.opt-boite{width:1060px;padding:56px 64px;border:1px solid var(--cyan);background:rgba(4,14,26,.94);box-shadow:0 0 60px rgba(98,189,242,.2);
+  display:flex;flex-direction:column;gap:30px}
+.opt-ligne{display:grid;grid-template-columns:1fr auto;align-items:center;gap:30px;padding:18px 0;border-bottom:1px solid var(--cyan-soft)}
+.opt-ligne:last-of-type{border-bottom:0}
+.opt-nom{margin:0;font:600 34px/1.2 var(--f-ui);letter-spacing:.06em;text-transform:uppercase;color:var(--ink)}
+.opt-aide{margin:6px 0 0;font:400 24px/1.35 var(--f-read);color:var(--ink-dim)}
+.groupe{display:flex}
+.groupe button{min-width:150px;padding:16px 22px;border:1px solid var(--cyan-soft);margin-left:-1px;background:var(--panel);color:var(--ink-dim);
+  font:600 24px/1 var(--f-ui);letter-spacing:.1em;text-transform:uppercase;cursor:pointer}
+.groupe button[aria-pressed="true"]{background:var(--cyan);border-color:var(--cyan);color:var(--void)}
+.groupe button:focus-visible{outline:3px solid var(--cyan);outline-offset:3px;position:relative}
+.opt-pied{display:flex;justify-content:center;padding-top:10px}
+@media (prefers-reduced-motion:reduce){
+  #titreEcran.on #titreNom,#titreEcran.on #menu > *,.planete,#titreEcran.zoom #titreImage{animation:none}
+  #avert p.ligne{filter:none;transform:none}
+}
+</style>
+<div id="scene">
+  <div id="stage">
+    <img class="fond" id="fondDual" src="fonds/fond-dual.webp" alt="">
+    <img class="fond" id="fondSingle" src="fonds/fond-single.webp" alt="">
+
+    <section class="phase" id="phaseLecture">
+      <div class="zone" id="zoneTexte">
+        <p class="evt-meta" id="evtMeta"></p>
+        <h1 class="evt-titre" id="evtTitre"></h1>
+        <div class="filet"></div>
+        <div id="recit"></div>
+      </div>
+
+      <div class="zone" id="zoneDroite">
+        <div class="bloc" id="attente" hidden>
+          <p class="ui-label">Lecture en cours</p>
+          <div class="chrono"><span id="chronoNum">30</span></div>
+          <div class="jauge"><div id="jaugeFill"></div></div>
+          <p class="consigne">Lis attentivement et repère les indices. Ils t'aideront à faire le bon choix.</p>
+        </div>
+
+        <div class="bloc" id="choix" hidden>
+          <p class="ui-label">Décision requise</p>
+          <h2 class="question">Que fais-tu&nbsp;?</h2>
+          <div id="listeChoix"></div>
+        </div>
+
+        <div class="bloc" id="action" hidden>
+          <p class="ui-label" id="actionLabel"></p>
+          <button class="btn principal" id="btnAction" type="button"></button>
+        </div>
+      </div>
+    </section>
+
+    <section class="phase" id="phaseBrief">
+      <div class="zone" id="zoneBrief">
+        <div class="brief-page" id="brief1">
+          <div id="holoIA" aria-hidden="true"></div>
+          <div class="b1-col">
+            <p class="evt-meta" id="b1Meta"></p>
+            <h1 class="evt-titre" id="b1Titre"></h1>
+            <div class="filet"></div>
+            <div id="b1Texte"></div>
+            <div class="danger grand">
+              <svg viewBox="0 0 64 56" aria-hidden="true"><polygon points="32,3 61,53 3,53" fill="#ffb020" stroke="#1a1204" stroke-width="3" stroke-linejoin="round"/><rect x="29" y="18" width="6" height="20" rx="2" fill="#1a1204"/><circle cx="32" cy="45" r="3.6" fill="#1a1204"/></svg>
+              <div><p class="danger-label">Danger</p><p class="danger-texte" id="b1Danger"></p></div>
+            </div>
+            <div class="brief-chrono"><p class="ui-label">Lecture en cours</p><span class="num" id="b1Num"></span><div class="jauge" style="width:300px"><div id="b1Fill"></div></div></div>
+          </div>
+        </div>
+        <div class="brief-page" id="briefLex" hidden>
+          <p class="evt-meta" id="lexMeta"></p>
+          <h1 class="evt-titre" id="lexTitre"></h1>
+          <div class="filet"></div>
+          <dl id="lexMots"></dl>
+          <div class="brief-chrono"><p class="ui-label">Lecture en cours</p><span class="num" id="lexNum"></span><div class="jauge" style="width:300px"><div id="lexFill"></div></div></div>
+        </div>
+        <div class="brief-page" id="brief2" hidden>
+          <div id="holo" aria-hidden="true"></div>
+          <div class="b2-col">
+            <p class="evt-meta" id="b2Meta"></p>
+            <h1 class="evt-titre" id="b2Titre"></h1>
+            <div class="filet"></div>
+            <div id="b2Regles"></div>
+            <div class="brief-chrono" id="b2Attente"><p class="ui-label">Lecture en cours</p><span class="num" id="b2Num"></span><div class="jauge" style="width:300px"><div id="b2Fill"></div></div></div>
+            <div id="b2Go" hidden><button class="btn principal" id="btnGo" type="button">Commencer la mission →</button></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="phase" id="phaseTitre">
+      <div id="titreEcran" hidden>
+        <canvas id="ciel" width="1920" height="1280" aria-hidden="true"></canvas>
+        <div class="planete" id="planete" aria-hidden="true"></div>
+        <img id="titreImage" alt="" hidden>
+        <div class="voile"></div>
+        <div class="bloc-titre">
+          <p class="ui-label" id="titreAuteur">Marc-André Deschênes</p>
+          <h1 id="titreNom"></h1>
+          <div class="trait"></div>
+          <p id="titreSous"></p>
+        </div>
+        <div id="menu">
+          <button class="btn principal" id="btnCommencer" type="button">Commencer le jeu</button>
+          <button class="btn" id="btnOptions" type="button">Options</button>
+        </div>
+        <div id="options" hidden role="dialog" aria-modal="true" aria-labelledby="optTitre">
+          <div class="opt-boite">
+            <h2 class="evt-titre" id="optTitre" style="font-size:52px">Options</h2>
+            <div class="filet"></div>
+            <div class="opt-ligne">
+              <div><p class="opt-nom">Narration</p><p class="opt-aide">Une voix lit les textes à voix haute.</p></div>
+              <div class="groupe" data-reglage="narration"><button type="button" data-v="false">Désactivée</button><button type="button" data-v="true">Activée</button></div>
+            </div>
+            <div class="opt-ligne">
+              <div><p class="opt-nom">Vitesse de la voix</p><p class="opt-aide">Pour la narration.</p></div>
+              <div class="groupe" data-reglage="vitesse"><button type="button" data-v="0.8">Lente</button><button type="button" data-v="1">Normale</button><button type="button" data-v="1.2">Rapide</button></div>
+            </div>
+            <div class="opt-ligne">
+              <div><p class="opt-nom">Son des cinématiques</p><p class="opt-aide">Bruitages et musique des vidéos.</p></div>
+              <div class="groupe" data-reglage="son"><button type="button" data-v="false">Coupé</button><button type="button" data-v="true">Activé</button></div>
+            </div>
+            <div class="opt-ligne">
+              <div><p class="opt-nom">Plein écran</p><p class="opt-aide">Le jeu occupe tout l'écran.</p></div>
+              <div class="groupe"><button type="button" id="btnPleinEcran" aria-pressed="false">Basculer</button></div>
+            </div>
+            <div class="opt-pied"><button class="btn principal" id="btnRetour" type="button">← Retour</button></div>
+          </div>
+        </div>
+      </div>
+      <div id="avert" hidden></div>
+    </section>
+
+    <section class="phase" id="phaseCine">
+      <div class="zone" id="zoneCine">
+        <div class="ecran" id="ecran"></div>
+        <div class="centre" id="cineStatut" hidden><p class="ui-label"><span id="cineEtiquette">Transmission entrante</span> · <span id="cineId"></span></p></div>
+        <div class="centre" id="cineActions" hidden>
+          <p class="acte" id="cineActionsLabel"></p>
+          <div class="rangee">
+            <button class="btn" id="btnRejouer" type="button">↻ Rejouer</button>
+            <button class="btn principal" id="btnContinuer" type="button">Continuer →</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script src="histoire.js"></script>
+<script>
+(function(){
+  const H = window.HISTOIRE;
+  const C = Object.assign({dureeLecture:40, dureeBriefing:40, delaiAvantVideo:1500, delaiApresVideo:1000, delaiAvantFinale:800, dureeGameOver:3000, dureeTemporaire:3000, finPartie:'GOVER', defilement:0.85}, window.CONFIG || {});
+  if (/test/i.test(location.hash + location.search)){ C.dureeLecture = 5; C.dureeBriefing = 5; C.dureeMenace = 5; }
+
+  const $ = id => document.getElementById(id);
+  const attendre = ms => new Promise(r => setTimeout(r, ms));
+  const ecran = $('ecran');
+  const E = id => H.evenements[id];
+  const NOM_IA = (H.briefing && H.briefing.page1 && H.briefing.page1.nomIA) || 'IA';
+  const nom = t => String(t).split('{IA}').join(NOM_IA.replace(/-/g, '\u2011'));   // trait d'union insécable : « ISIS-73 » ne se coupe pas
+  let arreterHolo = () => {};
+  /* acte affiché au-dessus des boutons Rejouer / Continuer : selon le palier (1A → Acte 1), finales → Conclusion */
+  const acte = id => { const e = E(id) || {};
+    if (e.acte) return e.acte;
+    if (e.fin) return 'Conclusion';
+    return /^\d/.test(id) ? 'Acte ' + id[0] : 'Prologue'; };
+  const fichier = id => (E(id) && 'cinematique' in E(id)) ? E(id).cinematique : `cinematiques/${id}.mp4`;
+
+  let courant = null, cible = null, verrou = false, chronoRAF = 0, jetonCine = 0;
+
+  /* ---- réglages des options (gardés dans le navigateur) ---- */
+  const R = { narration: false, vitesse: 1, son: true };
+  try { Object.assign(R, JSON.parse(localStorage.getItem('heroBooklets.options') || '{}')); } catch (_) {}
+  const sauverReglages = () => { try { localStorage.setItem('heroBooklets.options', JSON.stringify(R)); } catch (_) {} };
+
+  /* ---- narration : synthèse vocale du navigateur, voix française (québécoise si possible) ---- */
+  const voix = window.speechSynthesis || null;
+  let voixFr = null;
+  function choisirVoix(){
+    if (!voix) return;
+    const v = voix.getVoices().filter(x => /^fr/i.test(x.lang));
+    voixFr = v.find(x => /fr[-_]CA/i.test(x.lang)) || v.find(x => /google/i.test(x.name)) || v[0] || null;
+  }
+  if (voix){ choisirVoix(); voix.addEventListener && voix.addEventListener('voiceschanged', choisirVoix); }
+  const pourVoix = t => String(t).split('{IA}').join(NOM_IA.replace(/-/g, ' ')).replace(/…/g, '...');
+  const enTexte = t => typeof t === 'string' ? t : t && t.danger ? 'Danger. ' + t.danger : t && t.boutons ? t.boutons.join('. ') + '.' : '';
+  function taire(){ if (voix) voix.cancel(); }
+  /* textes : liste de phrases ou paragraphes. file = true : s'ajoute après ce qui est déjà lu. */
+  function narrer(textes, file){
+    if (!R.narration || !voix) return;
+    if (!file) voix.cancel();
+    for (const t of textes){
+      // une énonciation par phrase : Chrome coupe parfois les énonciations trop longues
+      for (const phrase of pourVoix(enTexte(t)).split(/(?<=[.!?»:])\s+/)){
+        if (!phrase.trim()) continue;
+        const u = new SpeechSynthesisUtterance(phrase);
+        u.lang = (voixFr && voixFr.lang) || 'fr-CA'; if (voixFr) u.voice = voixFr;
+        u.rate = Number(R.vitesse) || 1;
+        voix.speak(u);
+      }
+    }
+  }
+
+  /* ---- mise à l'échelle de la scène ---- */
+  function ajuster(){
+    const sc = $('scene'), w = sc.clientWidth, h = sc.clientHeight;
+    const s = Math.min(w / 1920, h / 1280);
+    $('stage').style.transform = `translate(${(w - 1920 * s) / 2}px,${(h - 1280 * s) / 2}px) scale(${s})`;
+  }
+  addEventListener('resize', ajuster); ajuster();
+
+  /* ---- préchargement : une vidéo par suite possible ---- */
+  const reserve = new Map();   // id -> { el, etat: 'chargement' | 'ok' | 'manquant' }
+  function precharger(ids){
+    const garder = new Set(ids);
+    for (const [id, v] of reserve) if (!garder.has(id)){ v.el.removeAttribute('src'); v.el.load(); reserve.delete(id); }
+    for (const id of garder){
+      if (reserve.has(id)) continue;
+      const src = fichier(id);
+      const el = document.createElement('video');
+      el.playsInline = true; el.preload = 'auto';
+      const v = { el, etat: src ? 'chargement' : 'manquant' };
+      if (src){
+        el.addEventListener('canplaythrough', () => { if (v.etat === 'chargement') v.etat = 'ok'; }, { once: true });
+        el.addEventListener('error', () => { v.etat = 'manquant'; }, { once: true });
+        el.src = src; el.load();
+      }
+      reserve.set(id, v);
+    }
+  }
+  function debloquerSon(id){
+    const v = reserve.get(id);
+    if (!v || v.etat === 'manquant') return;
+    v.el.muted = !R.son;
+    const p = v.el.play();
+    if (p) p.then(() => { if (!v.enLecture){ v.el.pause(); v.el.currentTime = 0; } }).catch(() => {});
+  }
+
+  /* ---- panneau de droite ---- */
+  function panneau(nom){ ['attente', 'choix', 'action'].forEach(id => $(id).hidden = (id !== nom)); }
+  function remplirTexte(meta, titre, paragraphes){
+    $('evtMeta').textContent = meta;
+    $('evtTitre').textContent = nom(titre);
+    $('recit').replaceChildren(...paragraphes.map(t => {
+      if (t && typeof t === 'object' && t.danger){
+        const d = document.createElement('div'); d.className = 'danger';
+        d.innerHTML = '<svg viewBox="0 0 64 56" aria-hidden="true"><polygon points="32,3 61,53 3,53" fill="#ffb020" stroke="#1a1204" stroke-width="3" stroke-linejoin="round"/><rect x="29" y="18" width="6" height="20" rx="2" fill="#1a1204"/><circle cx="32" cy="45" r="3.6" fill="#1a1204"/></svg><div><p class="danger-label">Danger</p><p class="danger-texte"></p></div>';
+        d.querySelector('.danger-texte').textContent = nom(t.danger);
+        return d;
+      }
+      if (t && typeof t === 'object' && t.boutons){
+        const d = document.createElement('div'); d.className = 'panneau-boutons';
+        d.replaceChildren(...t.boutons.map(x => { const b = document.createElement('span'); b.textContent = nom(x); return b; }));
+        return d;
+      }
+      const p = document.createElement('p'); p.textContent = nom(t); return p;
+    }));
+    const longueur = paragraphes.map(t => nom(typeof t === 'string' ? t : (t.danger || (t.boutons || []).join(' ')))).join(' ').length;
+    $('recit').classList.toggle('dense', longueur > 440);
+    const deborde = () => $('zoneTexte').scrollHeight > $('zoneTexte').clientHeight + 2;
+    $('recit').classList.remove('serre');
+    if (deborde()) $('recit').classList.add('dense');    // filet de sécurité : texte qui déborde → police réduite
+    if (deborde()) $('recit').classList.add('serre');    // encore trop long → un cran plus petit
+    $('zoneTexte').scrollTop = 0;
+  }
+  function ecranAction(label, bouton, quand, etat){
+    panneau('action');
+    $('action').dataset.etat = etat || '';
+    $('actionLabel').textContent = label;
+    $('btnAction').textContent = bouton;
+    $('btnAction').onclick = quand;
+  }
+
+  /* ---- briefing (deux pages plein écran) ---- */
+  function accueil(){
+    cancelAnimationFrame(chronoRAF);
+    const B = H.briefing;
+    document.body.classList.remove('mode-cine');
+    document.body.classList.add('mode-brief');
+    $('b1Meta').textContent = nom(B.page1.meta);
+    $('b1Titre').textContent = nom(B.page1.titre);
+    $('b1Texte').replaceChildren(...B.page1.texte.map(t => { const p = document.createElement('p'); p.textContent = nom(t); return p; }));
+    $('b1Danger').textContent = nom(B.page1.danger);
+    arreterHolo();
+    const toile = document.createElement('canvas');
+    $('holoIA').replaceChildren(toile);
+    arreterHolo = demarrerHoloIA(toile, NOM_IA, matchMedia('(prefers-reduced-motion: reduce)').matches);
+    $('brief1').hidden = false; $('briefLex').hidden = true; $('brief2').hidden = true;
+    precharger([H.depart]);
+    ecrire([$('b1Texte'), $('b1Danger')], dureeEcriture(C.dureeBriefing || C.dureeLecture));
+    narrer([B.page1.titre, ...B.page1.texte, { danger: B.page1.danger }]);
+    lancerChrono($('b1Num'), $('b1Fill'), C.dureeBriefing || C.dureeLecture, B.lexique ? briefingLexique : briefingMenace);
+  }
+  function briefingLexique(){
+    const X = H.briefing.lexique;
+    arreterHolo(); arreterHolo = () => {};
+    $('lexMeta').textContent = nom(X.meta);
+    $('lexTitre').textContent = nom(X.titre);
+    $('lexMots').replaceChildren(...X.mots.map(m => {
+      const d = document.createElement('div'); d.className = 'mot';
+      const dt = document.createElement('dt'), dd = document.createElement('dd');
+      dt.textContent = nom(m.mot); dd.textContent = nom(m.def); d.append(dt, dd); return d;
+    }));
+    $('brief1').hidden = true; $('briefLex').hidden = false; $('brief2').hidden = true;
+    ecrire([$('lexMots')], dureeEcriture(C.dureeBriefing || C.dureeLecture));
+    narrer([X.titre + '.', ...X.mots.map(m => m.mot + ' : ' + m.def)]);
+    lancerChrono($('lexNum'), $('lexFill'), C.dureeBriefing || C.dureeLecture, briefingMenace);
+  }
+  function briefingMenace(){
+    const B = H.briefing.page2;
+    arreterHolo(); arreterHolo = () => {};
+    $('b2Meta').textContent = nom(B.meta);
+    $('b2Titre').textContent = nom(B.titre);
+    $('b2Regles').replaceChildren(...B.regles.map((t, i) => {
+      const d = document.createElement('div'); d.className = 'regle';
+      d.innerHTML = '<span class="cle"></span><p></p>';
+      d.children[0].textContent = i + 1; d.children[1].textContent = nom(t);
+      return d;
+    }));
+    $('holo').innerHTML = holoAraignee();
+    $('brief1').hidden = true; $('briefLex').hidden = true; $('brief2').hidden = false;
+    $('b2Attente').hidden = false; $('b2Go').hidden = true;
+    const dureeMenace = C.dureeMenace || C.dureeBriefing || C.dureeLecture;   // page de l'araignée : chrono à part
+    ecrire([$('b2Regles')], dureeEcriture(dureeMenace));
+    narrer([B.titre + '.', ...B.regles]);
+    lancerChrono($('b2Num'), $('b2Fill'), dureeMenace, () => {
+      $('b2Attente').hidden = true; $('b2Go').hidden = false; $('btnGo').focus({preventScroll: true});
+    });
+  }
+  $('btnGo').addEventListener('click', () => { taire(); debloquerSon(H.depart); arriver(H.depart); });
+
+  /* ---- visage holographique de l'IA du vaisseau (maillage 3D animé sur canvas) ---- */
+  function demarrerHoloIA(canvas, nomIA, immobile){
+    const W = 720, H = 720, DPR = 2;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    const g = canvas.getContext('2d');
+    g.scale(DPR, DPR);
+    const CY = '98,189,242', VERT = '126,224,161';
+
+    /* --- forme de la tête : demi-largeur a(y) et demi-profondeur b(y) --- */
+    const TY = [1.17, 1.0, 0.8, 0.5, 0.2, 0, -0.2, -0.45, -0.7, -0.9, -1.05, -1.13];
+    const TA = [0, 0.5, 0.7, 0.8, 0.82, 0.8, 0.76, 0.68, 0.55, 0.38, 0.2, 0];
+    const TB = [0, 0.55, 0.8, 0.95, 1.0, 0.98, 0.9, 0.78, 0.64, 0.52, 0.36, 0];
+    function interp(T, y){
+      if (y >= TY[0]) return 0; if (y <= TY[TY.length - 1]) return 0;
+      for (let i = 1; i < TY.length; i++) if (y >= TY[i]){ const k = (y - TY[i]) / (TY[i - 1] - TY[i]); const s = k * k * (3 - 2 * k);
+        return T[i] + (T[i - 1] - T[i]) * (0.5 * k + 0.5 * s); }
+      return 0;
+    }
+    const ab = y => [interp(TA, y), interp(TB, y)];
+    const gauss = (d, s) => Math.exp(-((d / s) ** 2));
+    function relief(x, y){                                  // bosses du visage (avant seulement)
+      let d = 0;
+      if (y < 0.08 && y > -0.52) d += 0.2 * gauss(x, 0.085) * Math.pow(Math.min(1, (0.08 - y) / 0.44), 1.3) * (y < -0.4 ? gauss(y + 0.4, 0.07) : 1);
+      d += 0.035 * gauss(y - 0.2, 0.06) * (gauss(x - 0.33, 0.2) + gauss(x + 0.33, 0.2));            // arcades
+      d -= 0.06 * (gauss(x - 0.32, 0.12) + gauss(x + 0.32, 0.12)) * gauss(y - 0.06, 0.09);           // orbites
+      d += 0.05 * (gauss(x - 0.5, 0.14) + gauss(x + 0.5, 0.14)) * gauss(y + 0.18, 0.12);             // pommettes
+      d += 0.045 * gauss(x, 0.2) * gauss(y + 0.7, 0.07);                                             // lèvres
+      d += 0.05 * gauss(x, 0.16) * gauss(y + 1.0, 0.1);                                               // menton
+      return d;
+    }
+    function surf(u, v){                                     // u : 0 sommet → 1 menton ; v : angle (0 = face)
+      const y = 1.17 - 2.3 * u, [a, b] = ab(y);
+      const x = a * Math.sin(v);
+      let z = b * Math.cos(v);
+      if (Math.cos(v) > 0) z += relief(x, y) * Math.cos(v) ** 2;
+      return [x, y, z];
+    }
+    function avant(x, y){                                    // point sur la face pour des coordonnées (x, y)
+      const [a, b] = ab(y); const v = Math.asin(Math.max(-1, Math.min(1, x / Math.max(a, 0.01))));
+      return [x, y, b * Math.cos(v) + relief(x, y) * Math.cos(v) ** 2 + 0.005];
+    }
+
+    /* --- lignes du maillage --- */
+    const lignes = [];
+    for (let i = 1; i < 26; i++){ const u = i / 26, p = []; for (let j = 0; j <= 64; j++) p.push(surf(u, -Math.PI + j * Math.PI / 32)); lignes.push({ p, w: 1 }); }
+    for (let j = 0; j < 36; j++){ const v = -Math.PI + j * Math.PI / 18, p = []; for (let i = 0; i <= 36; i++) p.push(surf(i / 36, v)); lignes.push({ p, w: 1 }); }
+    // cou et épaules
+    for (let i = 0; i < 7; i++){ const y = -0.95 - i * 0.12, r = 0.36 + (i > 4 ? (i - 4) * 0.1 : 0), p = [];
+      for (let j = 0; j <= 48; j++){ const v = -Math.PI + j * Math.PI / 24; p.push([r * Math.sin(v), y, r * Math.cos(v) - 0.18]); } lignes.push({ p, w: 0.8 }); }
+    for (let j = 0; j < 16; j++){ const v = -Math.PI + j * Math.PI / 8, p = []; for (let i = 0; i <= 6; i++){ const y = -0.95 - i * 0.12, r = 0.36 + (i > 4 ? (i - 4) * 0.1 : 0); p.push([r * Math.sin(v), y, r * Math.cos(v) - 0.18]); } lignes.push({ p, w: 0.8 }); }
+    for (const m of [1, -1]){ const p = []; for (let i = 0; i <= 24; i++){ const t = i / 24; p.push([m * (0.4 + 1.25 * t), -1.68 + 0.22 * Math.sin(t * Math.PI * 0.9) - 0.35 * t * t, -0.15]); } lignes.push({ p, w: 2, fort: true }); }
+
+    /* --- traits du visage (posés sur la surface) --- */
+    const trait = (f, n, ferme) => { const p = []; for (let i = 0; i <= n; i++) p.push(avant(...f(i / n))); return { p, w: 2.2, fort: true, ferme }; };
+    const traits = [];
+    for (const m of [1, -1]){
+      const ex = 0.32 * m, ey = 0.05;
+      traits.push(trait(t => [ex + 0.15 * Math.cos(Math.PI * 2 * t), ey + 0.05 * Math.sin(Math.PI * 2 * t) * (Math.sin(Math.PI * 2 * t) > 0 ? 1.1 : 0.75)], 40, true)); // œil
+      traits.push(trait(t => [ex - m * 0.17 + m * 0.36 * t, 0.19 + 0.06 * Math.sin(Math.PI * t) - 0.02 * t * m * m], 20));                    // sourcil
+      traits.push(trait(t => [ex - 0.1 + 0.2 * t, -0.04 - 0.02 * Math.sin(Math.PI * t)], 12));                                                 // paupière basse
+    }
+    traits.push(trait(t => [-0.08 + 0.16 * t, -0.42 - 0.035 * Math.sin(Math.PI * t) + 0.02 * Math.cos(Math.PI * 2 * t)], 16));                                                    // base du nez
+    const LEVRE = t => [-0.16 + 0.32 * t, -0.645 + 0.022 * Math.sin(Math.PI * t) - 0.018 * Math.exp(-(((t - 0.5) / 0.08) ** 2))];
+
+    /* --- cheveux : mèches posées sur le crâne, carré qui descend au menton --- */
+    const cheveux = [];
+    const surCrane = (v, y, e) => { const [A, B] = ab(Math.min(y, 1.16)); const f = 1.06 + e; return [A * f * Math.sin(v), y, B * f * Math.cos(v)]; };
+    for (let k = 0; k < 34; k++){                                  // mèches des côtés et de l'arrière
+      const v = (k / 34) * 2 * Math.PI - Math.PI;
+      if (Math.abs(v) < 0.95) continue;
+      const p = []; for (let i = 0; i <= 26; i++){ const t = i / 26, y = 1.12 - 1.95 * t;
+        const ev = 0.08 * t * t, [A, B] = ab(Math.max(y, -0.35)); p.push([ (A * 1.07 + ev) * Math.sin(v), y, (B * 1.07 + ev) * Math.cos(v) - 0.05 * t ]); }
+      cheveux.push({ p, w: 1.3, fort: false });
+    }
+    for (let k = 0; k < 14; k++){                                  // frange qui part de la raie et balaie le front
+      const m = k < 9 ? 1 : -1, j = k < 9 ? k : k - 9, p = [];
+      for (let i = 0; i <= 22; i++){ const t = i / 22, v = m * (0.1 + j * 0.07 + (1.25 - j * 0.04) * t), y = 1.12 - j * 0.035 - (0.5 + j * 0.03) * Math.sin(t * Math.PI / 2) - 1.0 * Math.max(0, t - 0.72);
+        p.push(surCrane(v, y, 0.02 + 0.03 * t)); }
+      cheveux.push({ p, w: 1.6, fort: true });
+    }
+    { const p = []; for (let i = 0; i <= 40; i++){ const t = i / 40, v = -1.2 + 2.4 * t, y = -0.55 - 0.05 * Math.cos(v * 1.3);  // pointes du carré
+        const [A, B] = ab(-0.35); p.push([ (A * 1.07 + 0.08) * Math.sin(Math.PI + v) , y, (B * 1.07 + 0.08) * Math.cos(Math.PI + v) - 0.05 ]); } cheveux.push({ p, w: 1.6, fort: true }); }
+
+    /* --- particules --- */
+    const parts = Array.from({ length: 70 }, () => ({ x: (Math.random() - 0.5) * 2.6, y: -1.9 + Math.random() * 3.4, v: 0.08 + Math.random() * 0.18, r: Math.random() * 1.6 + 0.4 }));
+
+    const R = 205, CX = 360, CYc = 330;
+    function proj(p, yaw, pitch){
+      let [x, y, z] = p;
+      const cx = Math.cos(yaw), sx = Math.sin(yaw); [x, z] = [x * cx + z * sx, -x * sx + z * cx];
+      const cp = Math.cos(pitch), sp = Math.sin(pitch); [y, z] = [y * cp - z * sp, y * sp + z * cp];
+      const s = 5 / (5 - z);
+      return [CX + x * R * s, CYc - y * R * s, z];
+    }
+    // segments regroupés par niveau de luminosité : un seul tracé par niveau (rapide)
+    const NIV = 8;
+    function poly(pts, yaw, pitch, w, fort, ferme, decal, seaux){
+      const q = pts.map(p => proj(p, yaw, pitch));
+      for (let i = 1; i < q.length; i++){
+        const z = (q[i][2] + q[i - 1][2]) / 2, a = fort ? Math.max(0.12, Math.min(1, 0.55 + z)) : Math.max(0.05, Math.min(0.75, 0.22 + 0.6 * z));
+        const k = Math.min(NIV - 1, Math.floor(a * NIV));
+        seaux[k].push(q[i - 1][0] + decal, q[i - 1][1], q[i][0] + decal, q[i][1]);
+      }
+    }
+    function tracer(seaux, w){
+      g.lineWidth = w;
+      seaux.forEach((s, k) => { if (!s.length) return; g.strokeStyle = `rgba(${CY},${(k + 0.5) / NIV})`; g.beginPath();
+        for (let i = 0; i < s.length; i += 4){ g.moveTo(s[i], s[i + 1]); g.lineTo(s[i + 2], s[i + 3]); } g.stroke(); });
+    }
+    const seaux = () => Array.from({ length: NIV }, () => []);
+
+    let t0 = performance.now(), raf = 0, glitch = 0;
+    function image(now){
+      const t = immobile ? 2.2 : (now - t0) / 1000;
+      const yaw = 0.42 * Math.sin(t * 0.45), pitch = 0.06 * Math.sin(t * 0.31);
+      g.clearRect(0, 0, W, H);
+      g.save();
+      g.globalCompositeOperation = 'lighter';
+      g.lineCap = 'round';
+
+      // halo et disque du projecteur
+      const halo = g.createRadialGradient(CX, CYc, 20, CX, CYc, 330); halo.addColorStop(0, `rgba(${CY},.16)`); halo.addColorStop(1, `rgba(${CY},0)`);
+      g.fillStyle = halo; g.fillRect(0, 0, W, H);
+      for (let k = 0; k < 4; k++){ g.strokeStyle = `rgba(${CY},${0.5 - k * 0.1})`; g.lineWidth = 1.5; g.beginPath(); g.ellipse(CX, 690, 150 + k * 40, 20 + k * 6, 0, 0, Math.PI * 2); g.stroke(); }
+      const cone = g.createLinearGradient(0, 690, 0, 150); cone.addColorStop(0, `rgba(${CY},.13)`); cone.addColorStop(1, `rgba(${CY},0)`);
+      g.fillStyle = cone; g.beginPath(); g.moveTo(CX - 150, 690); g.lineTo(CX - 290, 120); g.lineTo(CX + 290, 120); g.lineTo(CX + 150, 690); g.fill();
+
+      // anneaux qui tournent
+      g.save(); g.translate(CX, CYc); g.rotate(t * 0.15);
+      g.setLineDash([4, 10]); g.strokeStyle = `rgba(${CY},.35)`; g.lineWidth = 1.5; g.beginPath(); g.arc(0, 0, 300, 0, Math.PI * 2); g.stroke();
+      g.setLineDash([60, 24, 8, 24]); g.rotate(-t * 0.35); g.strokeStyle = `rgba(${CY},.25)`; g.lineWidth = 3; g.beginPath(); g.arc(0, 0, 318, 0, Math.PI * 2); g.stroke();
+      g.setLineDash([]); g.restore();
+
+      if (!immobile && Math.random() < 0.012) glitch = 6;
+      const decal = glitch > 0 ? (Math.random() - 0.5) * 22 : 0; glitch--;
+
+      const fin = seaux(), epais = seaux(), tr = seaux();
+      for (const L of lignes) poly(L.p, yaw, pitch, L.w, L.fort, false, decal, L.fort ? epais : fin);
+      const ch = seaux(); for (const L of cheveux) poly(L.p, yaw, pitch, L.w, true, false, decal, ch);
+      for (const L of traits) poly(L.p, yaw, pitch, L.w, true, L.ferme, decal, tr);
+      tracer(fin, 1); tracer(epais, 2); tracer(ch, 1.4);
+      g.shadowColor = `rgba(${CY},.9)`; g.shadowBlur = 10;
+      tracer(tr, 2.2);
+
+      // iris, pupilles qui brillent
+      for (const m of [1, -1]){
+        const c = proj(avant(0.32 * m, 0.05), yaw, pitch);
+        g.strokeStyle = `rgba(${CY},.95)`; g.lineWidth = 2; g.beginPath(); g.arc(c[0] + decal, c[1], 10.5, 0, Math.PI * 2); g.stroke();
+        g.fillStyle = `rgba(${CY},${0.75 + 0.25 * Math.sin(t * 3)})`; g.beginPath(); g.arc(c[0] + decal, c[1], 4.5, 0, Math.PI * 2); g.fill();
+      }
+      // bouche qui parle
+      const parle = immobile ? 0.4 : Math.max(0, Math.sin(t * 11) * Math.sin(t * 3.7) + 0.25);
+      const haut = [], bas = [];
+      for (let i = 0; i <= 18; i++){ const s = i / 18, [x, y] = LEVRE(s), o = 0.045 * parle * Math.sin(Math.PI * s); haut.push(avant(x, y + 0.01)); bas.push(avant(x, y - 0.015 - 0.04 * Math.sin(Math.PI * s) - o)); }
+      const lv = seaux(); poly(haut, yaw, pitch, 2.4, true, false, decal, lv); poly(bas, yaw, pitch, 2.4, true, false, decal, lv); tracer(lv, 2.4);
+
+      // particules
+      g.shadowBlur = 0;
+      for (const p of parts){ if (!immobile){ p.y += p.v / 60; if (p.y > 1.5) p.y = -1.9; } const q = proj([p.x, p.y, 0], 0, 0);
+        g.fillStyle = `rgba(${CY},${0.55 * Math.max(0, 1 - Math.abs(p.y) / 1.7)})`; g.beginPath(); g.arc(q[0], q[1], p.r, 0, Math.PI * 2); g.fill(); }
+
+      // bandes de balayage
+      g.globalCompositeOperation = 'source-over';
+      for (let y = 0; y < H; y += 4){ g.fillStyle = 'rgba(3,6,11,.18)'; g.fillRect(0, y, W, 1.4); }
+      const sy = ((t * 140) % 820) - 60; const sc = g.createLinearGradient(0, sy - 30, 0, sy + 4);
+      sc.addColorStop(0, `rgba(${CY},0)`); sc.addColorStop(1, `rgba(${CY},.12)`); g.fillStyle = sc; g.fillRect(0, sy - 30, W, 34);
+
+      // textes et onde vocale
+      g.font = '600 17px "Chakra Petch", sans-serif'; g.textBaseline = 'middle';
+      const txt = (s, x, y, col, al) => { g.lineWidth = 6; g.strokeStyle = '#03060b'; g.textAlign = al || 'left'; g.strokeText(s, x, y); g.fillStyle = col; g.fillText(s, x, y); };
+      txt('IA DE BORD · VAISSEAU ORION', 14, 22, `rgb(${CY})`);
+      txt('DÉSIGNATION : ' + nomIA, 14, 48, `rgb(${CY})`);
+      txt('STATUT : EN LIGNE', 14, 700, `rgb(${VERT})`);
+      txt('TRANSMISSION VOCALE', 706, 700, `rgb(${CY})`, 'right');
+      for (let i = 0; i < 16; i++){ const h = 6 + 36 * Math.abs(Math.sin(t * 7 + i * 0.9) * Math.sin(t * 2.3 + i * 0.4)) * (immobile ? 0.5 : 1);
+        g.fillStyle = `rgba(${CY},.85)`; g.fillRect(500 + i * 13, 674 - h, 7, h); }
+      g.restore();
+      if (!immobile) raf = requestAnimationFrame(image);
+    }
+    raf = requestAnimationFrame(image);
+    return () => cancelAnimationFrame(raf);
+  }
+
+  /* ---- plan holographique de l'araignée ---- */
+  function holoAraignee(){
+    const B = '#62bdf2', F = 'rgba(98,189,242,.25)', O = '#ff8a3d', R = '#ff5d4f';
+    const ell = (cx, cy, rx, ry, w, op) => `<ellipse class="trace" pathLength="1" cx="${cx}" cy="${cy}" rx="${rx}" ry="${ry}" fill="none" stroke="${B}" stroke-width="${w}" opacity="${op || 1}"/>`;
+    let s = '<svg viewBox="-60 -70 720 690">';
+    for (let r = 70; r <= 280; r += 70) s += `<circle cx="300" cy="300" r="${r}" fill="none" stroke="${F}"/>`;
+    s += `<line x1="-40" y1="300" x2="640" y2="300" stroke="${F}"/><line x1="300" y1="-20" x2="300" y2="600" stroke="${F}"/>`;
+    const pattes = [[[335,190],[420,110],[500,70],[560,150]], [[340,205],[440,170],[530,160],[578,262]],
+                    [[340,222],[440,252],[520,305],[560,400]], [[335,238],[420,320],[478,420],[505,540]]];
+    for (const p of pattes) for (const m of [1, -1]){
+      const pts = p.map(([x, y]) => [m === 1 ? x : 600 - x, y]);
+      s += `<polyline class="trace" pathLength="1" points="${pts.map(q => q.join(',')).join(' ')}" fill="none" stroke="${B}" stroke-width="3" stroke-linejoin="round"/>`;
+      pts.slice(1, 3).forEach(([x, y]) => s += `<circle cx="${x}" cy="${y}" r="5" fill="#03060b" stroke="${B}" stroke-width="2"/>`);
+    }
+    s += ell(300, 370, 100, 125, 3);
+    for (const k of [-0.6, -0.3, 0, 0.3, 0.6]){ const rx = 100 * Math.sqrt(1 - k * k); s += ell(300, 370 + k * 125, rx, rx * 0.18, 1.2, .6); }
+    for (const f of [0.3, 0.65]) s += ell(300, 370, 100 * f, 125, 1.2, .6);
+    s += ell(300, 215, 62, 52, 3) + ell(300, 215, 31, 52, 1.2, .6) + ell(300, 215, 62, 13, 1.2, .6);
+    for (const [x, y, r] of [[284,192,6],[316,192,6],[271,202,4],[329,202,4]]) s += `<circle cx="${x}" cy="${y}" r="${r}" fill="${B}"/>`;
+    s += `<path class="trace" pathLength="1" d="M288 262 q-12 18 4 36" fill="none" stroke="${B}" stroke-width="3"/>`;
+    s += `<path class="trace" pathLength="1" d="M312 262 q12 18 -4 36" fill="none" stroke="${B}" stroke-width="3"/>`;
+    s += `<circle class="pulse" cx="300" cy="370" r="46" fill="none" stroke="${O}" stroke-width="3"/>`;
+    s += `<rect class="scan" x="-60" y="0" width="720" height="3" fill="${B}" opacity=".55"/>`;
+    const etiquette = (px, py, ex, ey, txt, col, ancre) =>
+      `<polyline points="${px},${py} ${ex},${ey}" fill="none" stroke="${col}" stroke-width="1.5"/><circle cx="${px}" cy="${py}" r="4" fill="${col}"/>` +
+      `<text class="holo-txt" x="${ex + (ancre === 'end' ? -8 : 8)}" y="${ey + 6}" text-anchor="${ancre}" fill="${col}">${txt}</text>`;
+    s += etiquette(500, 70, 590, 18, '8 PATTES · TRÈS RAPIDE', B, 'end');
+    s += etiquette(290, 292, 195, 330, 'CROCS VENIMEUX', B, 'end');
+    s += etiquette(206, 410, 175, 560, 'CARAPACE BLINDÉE', B, 'end');
+    s += etiquette(330, 400, 380, 575, 'POINT FAIBLE : LE FEU', O, 'start');
+    s += `<text class="holo-txt" x="-50" y="-42" fill="${B}">SPÉCIMEN : ARAIGNÉE GÉANTE</text>`;
+    s += `<text class="holo-txt" x="-50" y="-14" fill="${R}">NIVEAU DE MENACE : EXTRÊME</text>`;
+    return s + '</svg>';
+  }
+
+  /* ---- arrivée sur un événement ----
+     Événement ordinaire : cinématique d'arrivée, puis page de lecture.
+     Finale : le texte s'enchaîne tout de suite ; la vidéo joue quand l'élève clique « Continuer ». */
+  async function arriver(id){
+    cible = id; taire();
+    cancelAnimationFrame(chronoRAF);
+    document.body.classList.remove('mode-brief');
+    if (E(id) && E(id).fin){
+      document.body.classList.add('mode-fondu');
+      await attendre(420);
+      document.body.classList.remove('mode-fondu');
+      return afficherPage(id);
+    }
+    document.body.classList.add('mode-cine');
+    await jouerCinematique(C.delaiAvantVideo);
+  }
+
+  /* ---- page de lecture ---- */
+  function afficherPage(id){
+    const e = E(id);
+    if (!e){ console.warn('Événement introuvable :', id); return accueil(); }
+    courant = e; verrou = false;
+    document.body.classList.remove('mode-cine');
+    remplirTexte(e.fin ? 'Finale · ' + id : 'Événement · ' + id, e.titre, e.texte || []);
+    narrer([e.titre + '.', ...(e.texte || [])]);
+
+    if (e.fin){
+      const gagne = e.fin === 'victoire';
+      precharger(gagne ? [id, H.depart] : [id, C.finPartie, H.depart].filter(Boolean));
+      ecranAction(gagne ? 'Mission accomplie' : 'Mission échouée', 'Continuer →', () => {
+        $('btnAction').onclick = null;        // un seul clic
+        taire();
+        debloquerSon(id);
+        lancerFinale(id);
+      }, gagne ? 'victoire' : 'echec');
+      // le texte de la finale défile à la même vitesse qu'une page normale (≈ 450 lettres par chrono de lecture)
+      const vitesse = 450 / Math.max(0.001, dureeEcriture(C.dureeLecture));   // lettres par ms
+      $('btnAction').style.visibility = 'hidden';
+      ecrire([$('recit')], n => n / vitesse, () => {
+        $('btnAction').style.visibility = '';
+        const a = $('action'); a.classList.remove('entree'); void a.offsetWidth; a.classList.add('entree');
+        $('btnAction').focus({preventScroll: true});
+      });
+      return;
+    }
+
+    const suites = e.choix.map(c => c.suite);
+    if (C.finPartie && suites.some(s => E(s) && E(s).fin === 'echec')) suites.push(C.finPartie);
+    precharger(suites);
+    $('listeChoix').replaceChildren(...e.choix.map((c, i) => {
+      const b = document.createElement('button');
+      b.type = 'button'; b.className = 'choix' + (c.tentation ? ' tentation' : '');
+      b.innerHTML = '<span class="cle"></span><span></span>';
+      b.children[0].textContent = 'ABC'[i];
+      b.children[1].textContent = nom(c.texte);
+      b.addEventListener('click', () => choisir(i, b));
+      return b;
+    }));
+    panneau('attente');
+    ecrire([$('recit')], dureeEcriture(C.dureeLecture));
+    lancerChrono($('chronoNum'), $('jaugeFill'), C.dureeLecture, revelerChoix);
+  }
+
+  /* ---- défilement « transmission » : le texte apparaît lettre par lettre.
+     Toutes les lettres sont en place dès le départ (invisibles) : la mise en page et la justification ne bougent pas.
+     duree : ms, ou fonction (nombre de lettres) → ms. fini : appelé quand tout est affiché. ---- */
+  let jetonEcriture = 0;
+  const MOUVEMENT_REDUIT = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  function ecrire(racines, duree, fini){
+    const jeton = ++jetonEcriture, lettres = [];
+    for (const r of racines){
+      const w = document.createTreeWalker(r, NodeFilter.SHOW_TEXT), noeuds = [];
+      while (w.nextNode()) noeuds.push(w.currentNode);
+      for (const n of noeuds){
+        const f = document.createDocumentFragment();
+        for (const ch of n.data){ const sp = document.createElement('span'); sp.className = 'l'; sp.textContent = ch; f.append(sp); lettres.push(sp); }
+        n.replaceWith(f);
+      }
+    }
+    const ms = typeof duree === 'function' ? duree(lettres.length) : duree;
+    if (!lettres.length || !(ms > 0) || MOUVEMENT_REDUIT){ lettres.forEach(x => x.classList.add('on')); if (fini) fini(); return; }
+    const t0 = performance.now(); let k = 0, curseur = null;
+    const tic = now => {
+      if (jeton !== jetonEcriture) return;
+      const n = Math.min(lettres.length, Math.ceil(lettres.length * (now - t0) / ms));
+      while (k < n) lettres[k++].classList.add('on');
+      if (curseur) curseur.classList.remove('curseur');
+      if (k < lettres.length){ curseur = lettres[k - 1] || null; if (curseur) curseur.classList.add('curseur'); requestAnimationFrame(tic); }
+      else if (fini) fini();
+    };
+    requestAnimationFrame(tic);
+  }
+  const partDefilement = () => Math.max(0, Math.min(1, Number(C.defilement) || 0));
+  const dureeEcriture = secondes => secondes * 1000 * partDefilement();
+
+  function lancerChrono(numEl, fillEl, secondes, fin){
+    cancelAnimationFrame(chronoRAF);
+    const t0 = performance.now(), D = secondes * 1000;
+    const tic = now => {
+      const reste = Math.max(0, D - (now - t0));
+      numEl.textContent = Math.ceil(reste / 1000) + ' s';
+      fillEl.style.transform = `scaleX(${reste / D})`;
+      if (reste <= 0) return fin();
+      chronoRAF = requestAnimationFrame(tic);
+    };
+    chronoRAF = requestAnimationFrame(tic);
+  }
+  function revelerChoix(){
+    panneau('choix');
+    if (courant && courant.choix) narrer(['Que fais-tu ?', ...courant.choix.map((c, i) => 'ABC'[i] + ' : ' + c.texte + '.')], true);
+    const c = $('choix');
+    c.classList.remove('entree'); void c.offsetWidth; c.classList.add('entree');
+  }
+
+  async function choisir(i, bouton){
+    if (verrou) return; verrou = true;
+    taire();
+    const suite = courant.choix[i].suite;
+    document.querySelectorAll('.choix').forEach(b => b.disabled = true);
+    bouton.classList.add('choisi');
+    debloquerSon(suite);               // le clic de l'élève autorise le son
+    await attendre(800);
+    arriver(suite);
+  }
+
+  /* clavier : A, B, C (ou 1, 2, 3) choisissent quand les choix sont affichés */
+  addEventListener('keydown', ev => {
+    if (ev.ctrlKey || ev.metaKey || ev.altKey || $('choix').hidden || document.body.classList.contains('mode-cine')) return;
+    const k = 'ABC'.indexOf(ev.key.toUpperCase()), n = '123'.indexOf(ev.key), i = k >= 0 ? k : n;
+    const boutons = $('listeChoix').children;
+    if (i >= 0 && boutons[i]){ ev.preventDefault(); boutons[i].click(); }
+  });
+
+  /* ---- lecture d'une vidéo dans l'écran (ou écran temporaire si elle manque) ---- */
+  async function attendreChargement(v){
+    if (v.etat === 'chargement') await Promise.race([
+      new Promise(r => v.el.addEventListener('canplay', r, { once: true })),
+      new Promise(r => v.el.addEventListener('error', r, { once: true })),
+      attendre(4000)
+    ]);
+  }
+  async function jouerVideo(id, jeton){
+    let v = reserve.get(id);
+    if (!v){ precharger([...reserve.keys(), id]); v = reserve.get(id); }
+    await attendreChargement(v);
+    if (jeton !== jetonCine) return;
+
+    let joue = false;
+    if (v.etat !== 'manquant'){
+      ecran.replaceChildren(v.el);
+      v.el.currentTime = 0; v.enLecture = true; v.el.muted = !R.son;
+      try { await v.el.play(); joue = true; }
+      catch (_) { v.el.muted = true; try { await v.el.play(); joue = true; } catch (_) {} }
+    }
+    if (!ecran.classList.contains('ouvert')){ ecran.classList.remove('ferme'); ecran.classList.add('ouvert'); }
+
+    if (joue){
+      await new Promise(r => {
+        const fini = () => { v.el.removeEventListener('ended', fini); v.el.removeEventListener('error', fini); r(); };
+        v.el.addEventListener('ended', fini); v.el.addEventListener('error', fini);
+      });
+      v.enLecture = false;
+    } else {
+      const e = E(id) || {};
+      const t = document.createElement('div');
+      t.className = 'temporaire';
+      t.innerHTML = '<p class="ui-label">Cinématique à venir</p><p class="tmp-id"></p><p class="tmp-titre"></p><p class="tmp-fichier"></p>';
+      t.querySelector('.tmp-id').textContent = id;
+      t.querySelector('.tmp-titre').textContent = nom(e.titre || '');
+      t.querySelector('.tmp-fichier').textContent = 'Fichier attendu : ' + (fichier(id) || 'aucun');
+      ecran.replaceChildren(t);
+      await attendre(C.dureeTemporaire);
+    }
+  }
+  async function preparerEcran(delai, etiquette){
+    $('cineActions').hidden = true;
+    ecran.className = 'ecran';
+    $('cineStatut').hidden = false;
+    $('cineEtiquette').textContent = etiquette;
+    $('cineId').textContent = cible;
+    await attendre(delai);
+    $('cineStatut').hidden = true;
+  }
+  async function fermerEcran(){
+    ecran.classList.remove('ouvert'); ecran.classList.add('ferme');
+    await attendre(550);
+  }
+  function boutonsCine(label, rejouer, continuer, texteContinuer, etat, texteRejouer){
+    $('cineActionsLabel').textContent = label;
+    $('cineActions').dataset.etat = etat || '';
+    $('btnRejouer').onclick = rejouer;
+    $('btnRejouer').textContent = texteRejouer || '↻ Rejouer';
+    $('btnContinuer').textContent = texteContinuer;
+    $('btnContinuer').onclick = continuer;
+    $('cineActions').hidden = false;
+    $('btnContinuer').focus({preventScroll: true});
+  }
+
+  /* ---- cinématique d'arrivée d'un événement ordinaire ---- */
+  async function jouerCinematique(delai){
+    const jeton = ++jetonCine;
+    await preparerEcran(delai, 'Transmission entrante');
+    if (jeton !== jetonCine) return;
+    await jouerVideo(cible, jeton);
+    if (jeton !== jetonCine) return;
+    await fermerEcran();
+    await attendre(C.delaiApresVideo);
+    if (jeton !== jetonCine) return;
+    boutonsCine(acte(cible), () => jouerCinematique(600), () => {
+      $('cineActions').hidden = true;
+      afficherPage(cible);             // la page est remplie avant de réapparaître (pas d'éclair de l'ancienne page)
+    }, 'Continuer →');
+  }
+
+  /* ---- finale : vidéo de la finale, puis (échec) GOVER + GAME OVER, retour à l'introduction.
+         Aucun bouton pendant la séquence d'échec : l'élève assiste aux faits accomplis. ---- */
+  async function lancerFinale(id){
+    const jeton = ++jetonCine;
+    const gagne = E(id).fin === 'victoire';
+    cible = id;
+    cancelAnimationFrame(chronoRAF);
+    document.body.classList.add('mode-cine');
+    document.body.classList.toggle('sans-sortie', !gagne);
+    await preparerEcran(C.delaiAvantFinale, gagne ? 'Mission accomplie' : 'Fin de mission');
+    if (jeton !== jetonCine) return;
+    await jouerVideo(id, jeton);
+    if (jeton !== jetonCine) return;
+
+    if (gagne){
+      await verdict('Mission accomplie', 'victoire', 0);
+      if (jeton !== jetonCine) return;
+      boutonsCine(acte(id), () => { ecran.classList.add('ferme'); lancerFinale(id); }, async () => {
+        $('cineActions').hidden = true;
+        await fermerEcran();
+        arriver(H.depart);
+      }, 'Recommencer →', 'victoire', '↻ Revoir');
+      return;
+    }
+
+    if (C.finPartie){ await jouerVideo(C.finPartie, jeton); if (jeton !== jetonCine) return; }
+    await verdict('Game over', 'echec', C.dureeGameOver);
+    if (jeton !== jetonCine) return;
+    await fermerEcran();
+    if (jeton !== jetonCine) return;
+    document.body.classList.remove('sans-sortie');
+    arriver(H.depart);                 // retour à l'introduction, sans le briefing
+  }
+
+  /* grand texte par-dessus la dernière image ; duree = 0 : il reste affiché */
+  async function verdict(texte, etat, duree){
+    const d = document.createElement('div');
+    d.className = 'verdict ' + etat;
+    d.innerHTML = '<p></p>';
+    d.firstChild.textContent = texte;
+    ecran.append(d);
+    void d.offsetWidth; d.classList.add('visible');
+    if (!duree) return attendre(900);
+    await attendre(duree);
+    d.classList.remove('visible');
+    await attendre(500);
+  }
+
+  /* ---- ouverture : avertissement sur fond noir, puis écran titre (Commencer / Options) ---- */
+  const O = Object.assign({ avertissement: [], delaiEntreLignes: 1.6, dureeAvertissement: 5, titre: 'ORION', sousTitre: '', image: '' }, H.ouverture || {});
+  let arreterCiel = () => {};
+  async function ouverture(){
+    document.body.classList.add('mode-titre');
+    const av = $('avert');
+    if (O.avertissement.length){
+      const lignes = O.avertissement.map(t => { const p = document.createElement('p'); p.className = 'ligne'; p.textContent = nom(t); return p; });
+      const label = document.createElement('p'); label.className = 'av-label'; label.textContent = 'Avertissement';
+      av.replaceChildren(label, ...lignes);
+      av.hidden = false; av.classList.remove('part');
+      await attendre(900);
+      label.classList.add('on');
+      for (const p of lignes){ await attendre(O.delaiEntreLignes * 1000); p.classList.add('on'); }
+      await attendre(O.dureeAvertissement * 1000);
+      av.classList.add('part');
+      await attendre(1500);
+      av.hidden = true;
+    }
+    ecranTitre();
+  }
+  function ecranTitre(){
+    document.body.classList.add('mode-titre');
+    $('titreNom').textContent = nom(O.titre);
+    $('titreSous').textContent = nom(O.sousTitre);
+    $('titreSous').hidden = !O.sousTitre;
+    const img = $('titreImage'), te = $('titreEcran');
+    te.hidden = false; te.classList.remove('on', 'zoom');
+    if (O.image){
+      img.src = O.image; img.hidden = false; $('planete').hidden = true; $('ciel').hidden = true;
+      img.onerror = () => { img.hidden = true; $('planete').hidden = false; $('ciel').hidden = false; arreterCiel = dessinerCiel($('ciel')); };
+      te.classList.add('zoom');
+    } else { arreterCiel = dessinerCiel($('ciel')); }
+    void te.offsetWidth; te.classList.add('on');
+    setTimeout(() => $('btnCommencer').focus({ preventScroll: true }), 2600);
+  }
+  /* ciel étoilé (si aucune image titre) */
+  function dessinerCiel(cv){
+    const g = cv.getContext('2d'), etoiles = Array.from({ length: 420 }, () => ({ x: Math.random() * 1920, y: Math.random() * 1280, r: Math.random() * 1.6 + .3, p: Math.random() * 6 }));
+    let raf = 0;
+    const tic = now => {
+      g.clearRect(0, 0, 1920, 1280);
+      for (const e of etoiles){
+        g.globalAlpha = .35 + .65 * Math.abs(Math.sin(now / 1400 + e.p));
+        g.fillStyle = '#dbe8f5'; g.beginPath(); g.arc((e.x - now * .004 * e.r) % 1920 + (e.x - now * .004 * e.r < 0 ? 1920 : 0), e.y, e.r, 0, 7); g.fill();
+      }
+      if (!MOUVEMENT_REDUIT) raf = requestAnimationFrame(tic);
+    };
+    raf = requestAnimationFrame(tic);
+    return () => cancelAnimationFrame(raf);
+  }
+  $('btnCommencer').addEventListener('click', async () => {
+    $('titreEcran').classList.remove('on');
+    if (voix && R.narration) voix.resume();
+    await attendre(900);
+    arreterCiel(); arreterCiel = () => {};
+    $('titreEcran').hidden = true;
+    document.body.classList.remove('mode-titre');
+    accueil();
+  });
+
+  /* ---- options ---- */
+  function majOptions(){
+    document.querySelectorAll('#options .groupe[data-reglage]').forEach(gr => {
+      const cle = gr.dataset.reglage;
+      gr.querySelectorAll('button').forEach(b => b.setAttribute('aria-pressed', String(String(R[cle]) === b.dataset.v)));
+    });
+    $('btnPleinEcran').setAttribute('aria-pressed', String(!!document.fullscreenElement));
+  }
+  document.querySelectorAll('#options .groupe[data-reglage]').forEach(gr => gr.addEventListener('click', ev => {
+    const b = ev.target.closest('button'); if (!b) return;
+    const cle = gr.dataset.reglage, v = b.dataset.v;
+    R[cle] = v === 'true' ? true : v === 'false' ? false : Number(v);
+    sauverReglages(); majOptions();
+    if (cle === 'narration' && !voix && R.narration) b.closest('.opt-ligne').querySelector('.opt-aide').textContent = 'Ce navigateur ne peut pas lire les textes à voix haute.';
+    if ((cle === 'narration' && R.narration) || (cle === 'vitesse' && R.narration)) narrer(['Narration activée. Voici la vitesse de la voix.']);
+    if (cle === 'narration' && !R.narration) taire();
+  }));
+  $('btnPleinEcran').addEventListener('click', async () => {
+    try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch (_) {}
+    setTimeout(majOptions, 200);
+  });
+  const ouvrirOptions = () => { majOptions(); $('options').hidden = false; $('menu').hidden = true; $('btnRetour').focus({ preventScroll: true }); };
+  const fermerOptions = () => { taire(); $('options').hidden = true; $('menu').hidden = false; $('btnOptions').focus({ preventScroll: true }); };
+  $('btnOptions').addEventListener('click', ouvrirOptions);
+  $('btnRetour').addEventListener('click', fermerOptions);
+  addEventListener('keydown', ev => { if (ev.key === 'Escape' && !$('options').hidden) fermerOptions(); });
+  addEventListener('fullscreenchange', () => { majOptions(); setTimeout(ajuster, 50); });
+
+  if (/test/i.test(location.hash + location.search)) window.heroTest = { page: afficherPage, aller: arriver, finale: lancerFinale, titre: ecranTitre, accueil };
+  /* #test : l'avertissement est raccourci ; #titre saute l'avertissement */
+  if (/test/i.test(location.hash + location.search)){ O.delaiEntreLignes = .3; O.dureeAvertissement = 1.5; }
+  if (/titre/i.test(location.hash)) ecranTitre(); else ouverture();
+})();
+</script>
+
+
+</body></html>
